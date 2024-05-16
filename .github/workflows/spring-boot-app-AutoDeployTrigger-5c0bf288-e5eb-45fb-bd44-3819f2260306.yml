@@ -1,0 +1,47 @@
+name: Trigger auto deployment for spring-boot-app
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/spring-boot-app-AutoDeployTrigger-5c0bf288-e5eb-45fb-bd44-3819f2260306.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.SPRINGBOOTAPP_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SPRINGBOOTAPP_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SPRINGBOOTAPP_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: iotcloudcourseregistry.azurecr.io
+          registryUsername: ${{ secrets.SPRINGBOOTAPP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.SPRINGBOOTAPP_REGISTRY_PASSWORD }}
+          containerAppName: spring-boot-app
+          resourceGroup: lab2
+          imageToBuild: iotcloudcourseregistry.azurecr.io/spring-boot-app:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
