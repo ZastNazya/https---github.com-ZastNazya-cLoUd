@@ -1,0 +1,79 @@
+name: Build and deploy Docker Container to ACA (Azure Container Apps)
+
+env:
+  JAVA_VERSION: '17'
+  SQL_CONSTR: ${{ secrets.SQLAZURECONNSTR_WEB_APP_DB }}
+  JAVA_APP: "Lab1.jar"
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Java version ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'zulu'
+
+      - name: Build with Maven
+        run: mvn clean install
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v3
+        with:
+          name: java-app
+          path: '${{ github.workspace }}/target/*.jar'
+
+      - name: Upload Dockerfile for deployment job
+        uses: actions/upload-artifact@v3
+        with:
+          name: Dockerfile
+          path: '${{ github.workspace }}/Dockerfile'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: java-app
+          path: ${{ github.workspace }}
+
+      - name: Download Dockerfile from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: Dockerfile
+          path: ${{ github.workspace }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: '${{ github.workspace }}'
+          registryUrl: iotcloudcourseregistry.azurecr.io
+          registryUsername: ${{ secrets.REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.REGISTRY_PASSWORD }}
+          containerAppName: spring-boot-app
+          resourceGroup: lab2
+          imageToBuild: iotcloudcourseregistry.azurecr.io/spring-boot-app:${{ github.sha }}
+          dockerfilePath: Dockerfile
+          targetPort: 8080
+          environmentVariables: 'SQLAZURECONNSTR_WEB_APP_DB=${{ env.SQL_CONSTR }}'
