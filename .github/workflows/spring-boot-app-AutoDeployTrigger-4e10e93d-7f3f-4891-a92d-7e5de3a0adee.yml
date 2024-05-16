@@ -1,0 +1,43 @@
+name: Trigger auto deployment for spring-boot-app
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/spring-boot-app-AutoDeployTrigger-4e10e93d-7f3f-4891-a92d-7e5de3a0adee.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:
+      
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.SPRINGBOOTAPP_AZURE_CREDENTIALS }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: iotcloudcourseregistry.azurecr.io
+          registryUsername: ${{ secrets.SPRINGBOOTAPP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.SPRINGBOOTAPP_REGISTRY_PASSWORD }}
+          containerAppName: spring-boot-app
+          resourceGroup: lab2
+          imageToBuild: iotcloudcourseregistry.azurecr.io/spring-boot-app:${{ github.sha }}
+          
+            
+
+     
+
