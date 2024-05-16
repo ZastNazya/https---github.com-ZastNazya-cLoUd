@@ -1,4 +1,4 @@
-uname: Build and deploy JAR app to Azure Web App
+name: Build and deploy JAR app to Azure Web App
 
 env:
   JAVA_VERSION: '17'
